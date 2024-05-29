@@ -5,9 +5,10 @@ import java.util.Random;
 public class GenRandNum {
     private static Random random = new Random();
 
+
     // Метод генерации экспоненциального распределения
     public static double generateExponential(double mean) {
-        return -mean * Math.log(1.0 - random.nextDouble());
+        return Math.log(random.nextDouble()) * -mean;
     }
 
     // Метод генерации нормального распределения

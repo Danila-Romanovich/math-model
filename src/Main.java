@@ -1,6 +1,8 @@
 public class Main {
     public static void main(String[] args) {
-        MathModel model = new MathModel(50, 13000,8, 4, 350, 150000, 15000, 8,3);
+        MathModel model = new MathModel(100, 1000,24, 8, 10, 150000, 150, 8,7);
         model.runSimulation(1,2);
+        model.optimization();
+
     }
 }

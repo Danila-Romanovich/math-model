@@ -38,7 +38,7 @@ public class MathModel {
     }
 
 
-    public void runSimulation(int numTechnicans, int spareMachines) {
+    public Object[] runSimulation(int numTechnicans, int spareMachines) {
         Machine[] machines = initMachines(spareMachines);
         MonthStatistic[] monthStatistics = initMonthStatistics();
 
@@ -53,12 +53,12 @@ public class MathModel {
         int reservedMachines = 0;
 
         int counterIdle = 0;
-        int counterReserved = 0;
+        int counterReserved = spareMachines;
         int counterWorking = 0;
         int counterRepair = 0;
         double losses = 0;
 
-        while (currentTime <= simulationHours) {
+        while (currentTime < simulationHours) {
             Event event = eventQueue.peek();  // Извлекаем событие из очереди
             double eventTime = currentTime;
 
@@ -68,23 +68,26 @@ public class MathModel {
                 if (event.type == 0) { // Если это событие отказа
 
                     event.machine.setStatus(false);  // Машина перестает работать
-                    System.out.println(event.machine.getId() + " ПК сломался"  + ",    часы: " + eventTime);
+//                    System.out.println(event.machine.getId() + " ПК сломался"  + ",    часы: " + eventTime);
                     repairQueue.add(event.machine); // добавляем в очередь на ремонт
                     event.machine.setProcessing(2); // устанавливаем статус "в очереди на ремонт"
-                    System.out.println(event.machine.getId() + " ПК в очереди на ремонт"  + ",    часы: " + eventTime);
-
+//                    System.out.println(event.machine.getId() + " ПК в очереди на ремонт"  + ",    часы: " + eventTime);
+                    counterRepair++;
 
                     if (!reservedQueue.isEmpty()) { // если есть резервные ПК то отправляем в отдел разработки
                         Machine machine = reservedQueue.poll();
                         machine.setProcessing(1);
-                        System.out.println(machine.getId() + " ПК взят с резерва"  + ",    часы: " + eventTime);
+//                        System.out.println(machine.getId() + " ПК взят с резерва"  + ",    часы: " + eventTime);
                         eventQueue.add(new Event((machine.getFailureTime() + eventTime), 0, machine)); // добавляем событие отказа
+                        if (counterReserved > 0) {
+                            counterReserved--;
+                        }
                     }
 
                     workingMachines--;  // Уменьшаем количество работающих машин
 
                     if (workingMachines < NUM_MACHINES) { // счётчик простаивающих машин
-                        idleMachines++;
+                        counterIdle++;
                     }
 
                     if (busyTechnicians < numTechnicans) {  // Если есть свободные наладчики
@@ -92,7 +95,7 @@ public class MathModel {
 
                         Machine machine = repairQueue.poll();
                         machine.setProcessing(3);
-                        System.out.println(machine.getId() + " ПК в ремонте"  + ",    часы: " + eventTime);
+//                        System.out.println(machine.getId() + " ПК в ремонте"  + ",    часы: " + eventTime);
 
                         double repairTime = event.machine.getRepairTime();  // Рассчитываем время окончания ремонта
                         eventQueue.add(new Event((repairTime + eventTime), 1, machine));  // Добавляем событие окончания ремонта
@@ -103,34 +106,37 @@ public class MathModel {
                 } else if (event.type == 1) {// Если это событие ремонта
 
                     event.machine.setStatus(true); // Машина снова работает
-                    System.out.println(event.machine.getId() + " ПК починили"  + ",    часы: " + eventTime);
+//                    System.out.println(event.machine.getId() + " ПК починили"  + ",    часы: " + eventTime);
                     event.machine.setFailureTime(GenRandNum.generateExponential(MTBF)); // Генерируем новое время до отказа
                     event.machine.setRepairTime(GenRandNum.generateNormal(MTTR, STANDART_DEVIATION)); // Генерируем новое время на ремонт
+                    counterRepair--;
 
 
                     if (workingMachines < NUM_MACHINES) {
                         event.machine.setProcessing(1);
-                        System.out.println(event.machine.getId() + " ПК переехал с ремонта в отдел разработки"  + ",    часы: " + currentTime);
+//                        System.out.println(event.machine.getId() + " ПК переехал с ремонта в отдел разработки"  + ",    часы: " + currentTime);
                         eventQueue.add(new Event((event.machine.getFailureTime() + eventTime), 0, event.machine)); // добавляем событие отказа
-                        idleMachines++; // счётчик простаивающих машин
+
+
                     } else {
                         event.machine.setProcessing(0); // отправляем в резерв
                         reservedQueue.add(event.machine);
-                        System.out.println(event.machine.getId() + " ПК добавлен в резерв"  + ",    часы: " + eventTime);
+//                        System.out.println(event.machine.getId() + " ПК добавлен в резерв"  + ",    часы: " + eventTime);
+                        counterReserved++;
                     }
                     eventQueue.remove(event); // убераем из очереди событий
                     workingMachines++;  // Увеличиваем количество работающих машин
                     busyTechnicians--;
 
-                    if (workingMachines >= NUM_MACHINES && idleMachines > 0) {
-                        idleMachines--;
+                    if (workingMachines >= NUM_MACHINES && counterIdle > 0) {
+                        counterIdle--;
                     }
 
                     if (!repairQueue.isEmpty()) { // если есть очередь на ремонт
                         busyTechnicians++;  // Увеличиваем количество занятых наладчиков
                         Machine machine = repairQueue.poll();
                         machine.setProcessing(3);
-                        System.out.println(machine.getId() + " ПК в ремонте"  + ",    часы: " + currentTime);
+//                        System.out.println(machine.getId() + " ПК в ремонте"  + ",    часы: " + currentTime);
 
                         double repairTime = machine.getRepairTime();  // Рассчитываем время окончания ремонта
                         eventQueue.add(new Event((repairTime + currentTime), 1, machine));  // Добавляем событие окончания ремонта
@@ -140,7 +146,7 @@ public class MathModel {
                 currentTime++;
 
                 if (counterMonth < SIMULATION_TIME * 12) {
-                    monthStatistics[counterMonth].uppdateData(counterIdle,counterReserved,counterWorking,counterRepair,losses);
+                    monthStatistics[counterMonth].uppdateData(counterIdle,counterReserved,workingMachines,counterRepair,(LOSSES * counterIdle));
                 }
 
                 // подсчёт номера месяца
@@ -154,16 +160,52 @@ public class MathModel {
                         monthStatistics[counterMonth].setHours(currentTime);
                         counterMonth++;
                     }
-                    System.out.println("");
-                    System.out.println("Месяц: " + counterMonth + ",    часы: " + currentTime);
-                    System.out.println("");
+//                    System.out.println("");
+//                    System.out.println("Месяц: " + counterMonth + ",    часы: " + currentTime);
+//                    System.out.println("");
                 }
 
             }
         }
-        for (int i=0; i<monthStatistics.length;i++) {
-            System.out.println(monthStatistics[i].toString());
+//        for (int i=0; i<monthStatistics.length;i++) {
+//            System.out.println(monthStatistics[i].toString());
+//        }
+        Object[] obj = new Object[2];
+        double[][] arrStat = new double[monthStatistics.length][];
+        for (int i = 0; i < monthStatistics.length; i++) {
+            arrStat[i] = monthStatistics[i].getAvgMonthStat();
         }
+        obj[1] = finalStatistick(monthStatistics, spareMachines, numTechnicans);
+        return obj;
+    }
+
+    public void optimization() {
+        double matrix[][] = new double[10][10];
+        double minLosses = 0;
+        int technicans = 0;
+        int machines = 0;
+        for (int i = 0; i < 10; i++) { // по строкам (кол.во наладчиков)
+            for (int j = 0; j < 10; j++) { // по столбцам (кол.во резервных ПК)
+                matrix[i][j] = ((double[])runSimulation(i+1,j)[1])[4] ;
+                if (i == 0 && j == 0) {
+                    minLosses = matrix[i][j];
+                    technicans = i+1;
+                    machines = j;
+                } else if (matrix[i][j] < minLosses) {
+                    minLosses = matrix[i][j];
+                    technicans = i+1;
+                    machines = j;
+                }
+
+            }
+        }
+        for (int i = 0; i < 10; i++) { // по строкам (кол.во наладчиков)
+            for (int j = 0; j < 10; j++) { // по столбцам (кол.во резервных ПК)
+                System.out.print(" " + matrix[i][j] + " ");
+            }
+            System.out.println("");
+        }
+        System.out.println("Минимальные потери " + minLosses + "$ при найме " + technicans + " наладчиков и покупке " + machines + " едениц оборудования");
     }
 
 
@@ -173,6 +215,7 @@ public class MathModel {
             machines[i] = new Machine(i + 1, GenRandNum.generateExponential(MTBF), GenRandNum.generateNormal(MTTR, STANDART_DEVIATION));
             if (i < NUM_MACHINES) {
                 eventQueue.add(new Event(machines[i].getFailureTime(), 0, machines[i]));  // Добавляем событие отказа
+                System.out.println(machines[i].getFailureTime());
             } else {
                 machines[i].setProcessing(0);
                 reservedQueue.add(machines[i]); // добавляем машину в очередь в резерве
@@ -185,7 +228,7 @@ public class MathModel {
     private MonthStatistic[] initMonthStatistics() {
         MonthStatistic[] monthStatistics = new MonthStatistic[SIMULATION_TIME * 12];
         for (int i = 0; i < monthStatistics.length; i++) {
-            monthStatistics[i] = new MonthStatistic();
+            monthStatistics[i] = new MonthStatistic(WORKING_HOURS);
         }
         return monthStatistics;
     }
@@ -196,5 +239,24 @@ public class MathModel {
 
     private double convertHoursToYears(double hours) {
         return (hours / (12 * 21 * WORKING_HOURS));
+    }
+
+    public double[] finalStatistick(MonthStatistic[] monthStatistics, int spareMachines, int numTechnicans) {
+        double monthLosses = 0;
+        for (int i = 0; i < monthStatistics.length; i++) {
+            monthLosses += monthStatistics[i].getLosses();
+        }
+        double avgMonthLosses = monthLosses / monthStatistics.length;
+        double lossesOnTechnicans = numTechnicans * SALARY_TECHNICIANS * convertYearsToHours();
+        double lossesOnSpareMachines = spareMachines * COAST_MACHINE;
+        double totalLosses = monthLosses + lossesOnTechnicans + lossesOnSpareMachines;
+        double avgTotalLosses = totalLosses / monthStatistics.length;
+        System.out.println("Средние потери в месяц: " + avgTotalLosses + "\n" +
+                "Затраты на зарплату наладчикам: " + lossesOnTechnicans + "\n" +
+                "Затраты на покупку резервных ПК: " + lossesOnSpareMachines + "\n" +
+                "Средние потери в месяц из за простоя: " + avgMonthLosses + "\n" +
+                "Общие потери: " + totalLosses);
+        double[] result = {avgTotalLosses, lossesOnTechnicans, lossesOnSpareMachines, avgMonthLosses, totalLosses};
+        return result;
     }
 }
